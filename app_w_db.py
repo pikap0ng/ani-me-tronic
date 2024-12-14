@@ -5,11 +5,11 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# OpenAI API Key
+# OpenAI API Key - change it out here 
 OPENAI_API_KEY = "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"
 
-# Configure SQLite database
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///chat_logs.db'
+# SQLite database configuration 
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///chat_logs.db' # link 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
@@ -20,11 +20,11 @@ class ChatLog(db.Model):
     user_input = db.Column(db.Text, nullable=False)
     chatgpt_response = db.Column(db.Text, nullable=False)
 
-# Initialize the database
+# init database 
 with app.app_context():
     db.create_all()
 
-# Root endpoint to display chat history
+# Root endpoint - display chat history via the public IP address in AWS 
 @app.route('/', methods=['GET'])
 def homepage():
     try:
@@ -36,7 +36,7 @@ def homepage():
         print(f"Error retrieving chat history: {e}")
         return jsonify({"error": "Unable to retrieve chat history."}), 500
 
-# Endpoint to send a prompt to ChatGPT and store the result
+# Endpoint - send a prompt to ChatGPT + store the result
 @app.route('/chat', methods=['POST'])
 def chat():
     data = request.json
@@ -62,17 +62,18 @@ def chat():
         "max_tokens": 150
     }
 
-    try:
+
+   try:
         # Make request to ChatGPT
         response = requests.post(url, headers=headers, json=payload)
         response.raise_for_status()
-
+        
         # Parse and return the response from ChatGPT
         chatgpt_response = response.json()
         gpt_reply = chatgpt_response.get("choices")[0]["message"]["content"]
-        print(f"GPT response: {gpt_reply}")
+        print(f"AMT response: {gpt_reply}")
 
-        # Save the chat log to the database
+        # Save chat log to the database
         new_log = ChatLog(user_input=command, chatgpt_response=gpt_reply)
         db.session.add(new_log)
         db.session.commit()
