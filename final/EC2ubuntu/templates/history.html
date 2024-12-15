@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Button Press Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+            background-color: #f4f4f9;
+        }
+        h1 {
+            text-align: center;
+        }
+        canvas {
+            max-width: 800px;
+            margin: 0 auto;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Real-Time Button Press Chart</h1>
+    <canvas id="buttonChart"></canvas>
+
+    <script>
+        // Connect to the WebSocket server running on Flask-SocketIO
+        const socket = io('http://54.193.62.45:5000');
+
+        // Chart data setup
+        const ctx = document.getElementById('buttonChart').getContext('2d');
+        const chartData = {
+            labels: [],  // Timestamps over the last 30 minutes
+            datasets: [
+                {
+                    label: 'Happy (Blue)',
+                    borderColor: 'blue',
+                    backgroundColor: 'rgba(0, 0, 255, 0.2)',
+                    data: [],  // Counts of "happy" button presses
+                    fill: true
+                },
+                {
+                    label: 'Angry (Red)',
+                    borderColor: 'red',
+                    backgroundColor: 'rgba(255, 0, 0, 0.2)',
+                    data: [],  // Counts of "angry" button presses
+                    fill: true
+                }
+            ]
+        };
+
+  // Uses WebSockets to receive live updates from a Flask-SocketIO server
+    // dynamically updates the chart for "happy" and "angry" button presses.
+      
+        // Initialize Chart.js line graph
+        const buttonChart = new Chart(ctx, {
+            type: 'line',
+            data: chartData,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'time',  // Use time-based x-axis
+                        time: {
+                            unit: 'minute',
+                            stepSize: 1,
+                            tooltipFormat: 'HH:mm:ss',
+                            displayFormats: {
+                                minute: 'HH:mm'
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Time (Last 30 Minutes)'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Button Press Count'
+                        },
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // Button press counters over the 30-minute window
+        let buttonPressCount = {
+            happy: 0,
+            angry: 0
+        };
+
+        // Function to add data to the chart
+        function addData(button) {
+            const now = new Date();
+            const timeLabel = now.toLocaleTimeString();
+
+            // If the time label does not exist, push it
+            if (!chartData.labels.includes(timeLabel)) {
+                chartData.labels.push(timeLabel);
+                chartData.datasets[0].data.push(0); // Happy
+                chartData.datasets[1].data.push(0); // Angry
+
+                // Trim to show only the last 30 minutes
+                if (chartData.labels.length > 30) {
+                    chartData.labels.shift();
+                    chartData.datasets[0].data.shift();
+                    chartData.datasets[1].data.shift();
+                }
+            }
+
+            // Increment counts
+            const lastIndex = chartData.labels.length - 1;
+            if (button === "happy") chartData.datasets[0].data[lastIndex]++;
+            if (button === "angry") chartData.datasets[1].data[lastIndex]++;
+
+            // Update chart
+            buttonChart.update();
+        }
+
+        // Listen for WebSocket updates from the Flask server
+        socket.on('update_chart', (data) => {
+            console.log("Received WebSocket Data:", data);
+            if (data.button) addData(data.button);
+        });
+    </script>
+</body>
+</html>
